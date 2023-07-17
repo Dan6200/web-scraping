@@ -6,7 +6,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node built/*.js",
+    "start": "node built/src/amazon.js",
     "test": "",
     "dev": "",
     "build": "tsc -p tsconfig.json"
@@ -28,11 +28,12 @@
   "dependencies": {
     "@types/pg": "^8.6.5",
     "pg": "^8.8.0",
+    "puppeteer-core": "^20.8.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "random-useragent": "^0.5.0",
     "stream-json": "^1.8.0",
-    "typescript": "*",
+    "typescript": "^5.1.6",
     "user-agents": "^1.0.1431"
   }
 }
