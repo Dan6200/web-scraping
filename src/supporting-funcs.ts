@@ -1,4 +1,4 @@
-import { Page } from "puppeteer";
+import { Page } from "puppeteer-core";
 import UA from "user-agents";
 import chai from "chai";
 
@@ -13,7 +13,7 @@ export function removeResizing(str: string | null) {
 }
 
 /** Gets data from each Product page **/
-export async function getData(page: Page, category) {
+export async function getData(page: Page, category: string) {
   // Definitions
   let title: string | undefined,
     imageData: { img: string; original: string | null } | undefined,
@@ -72,9 +72,9 @@ async function clickImage(page: Page, product_num: number, url: string) {
     // Action:
     // Clicks the product image and navigates to the product page
     async () => {
-      await page.waitForSelector("img.s-image");
+      await page.waitForSelector("a.a-link-normal.s-no-outline");
       const endIdx = await page.evaluate((idx: number) => {
-        const elements = document.querySelectorAll("img.s-image");
+        const elements = document.querySelectorAll("a.a-link-normal.s-no-outline");
         if (elements[idx]) {
           const element = elements[idx];
           const event = new MouseEvent("click", {
@@ -106,21 +106,37 @@ export async function* visitSubLinks(
   subLinks: string[]
 ) {
   let count = 0;
+  let category: string | undefined;
+
   while (subLinks.length > 0) {
     // Navigate to the next URL in the subLink array
-    const url = baseUrl.slice(0, baseUrl.indexOf("/s")) + subLinks.shift();
+    let url = baseUrl.slice(0, baseUrl.indexOf("/s")) + subLinks.shift();
     console.log("page: ", count++);
     await page.goto(url!, { timeout: 100_000 });
 
     // wait 1 second before clicking on the product image
     await delay(1000);
 
+    // Get the category from the page
+    if (category === undefined) {
+      const error: Error = (await errHandler(async () => {
+        await page.waitForSelector("#searchDropdownBox > option[selected]", {
+          timeout: 10_000,
+        });
+        category = await page.$eval(
+          "#searchDropdownBox > option[selected]",
+          (el: any) => el.textContent!.trim()
+        );
+      }))![1];
+      if (error) console.error(error);
+    }
+
     // Keep track of product index
     let product_idx = 0;
     // Keep track of page index
     let page_idx = 0;
     while (true) {
-      let category: string | undefined;
+      let endOfPage: boolean | undefined;
       try {
         // print page number
         console.log("page: ", page_idx + 1);
@@ -130,27 +146,13 @@ export async function* visitSubLinks(
         // wait
         await delay(4000);
 
-        // Get the category from the page
-        const error: Error = (await errHandler(async () => {
-          await page.waitForSelector("#searchDropdownBox > option[selected]", {
-            timeout: 10_000,
-          });
-          category = await page.$eval(
-            "#searchDropdownBox > option[selected]",
-            (el: any) => el.textContent!.trim()
-          );
-        }))![1];
-        if (error) console.error(error);
-
         // click on the product image and navigate to the product page
-        const [endOfPage, err] = await clickImage(page, product_idx, url!);
+        const result = await clickImage(page, product_idx, url!);
 
-        // If product is the last product on the page, go to the next page
-        if (endOfPage === true) {
-          await page.$eval("a.s-pagination-button", (el) => el.click());
-          page_idx++;
-        }
+        // Wait for high-res images to load
+        await delay(5_000);
         // If there is an error, print it
+        const err = result[1];
         if (err) console.error(err);
 
         // wait 5 seconds before going to the next item
@@ -159,13 +161,22 @@ export async function* visitSubLinks(
         console.error(e);
       } finally {
         // Retrieve data from page
-        const data = await getData(page, category);
+        const data = await getData(page, category!);
         // return data
         yield data;
         // wait 5 seconds before going to the next item
         await delay(5_000);
       }
+
+      // Go back to the products page
       await page.goto(url!, { timeout: 100_000 });
+
+      // If product is the last product on the page, go to the next page
+      if (endOfPage === true) {
+        await page.$eval("a.s-pagination-button", (el) => el.click());
+        url = page.url();
+        page_idx++;
+      }
       product_idx++;
     }
   }

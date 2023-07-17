@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "start": "node built/src/amazon.js",
-    "test": "",
+    "debug": "node --inspect-brk built/src/amazon.js",
     "dev": "",
     "build": "tsc -p tsconfig.json"
   },

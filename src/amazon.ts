@@ -20,8 +20,8 @@ export async function scrape() {
 
   try {
     browser = await puppeteer.default.launch({
-      // headless: 'new',
-      headless: false,
+      headless: "new",
+      // headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -49,6 +49,7 @@ export async function scrape() {
     fileStream.write("[\n");
 
     // Visits each sublink and scrapes data
+    // TODO: step-debug to understand the control flow
     for await (const data of visitSubLinks(
       page,
       baseUrl,
