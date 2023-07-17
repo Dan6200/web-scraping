@@ -1,0 +1,38 @@
+{
+  "name": "thrift",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server/built/server.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node built/*.js",
+    "test": "",
+    "dev": "",
+    "build": "tsc -p tsconfig.json"
+  },
+  "license": "ISC",
+  "author": "daniel <danielnyong66@gmail.com>",
+  "repository": "https://github.com/Dan6200/web-scraping.git",
+  "devDependencies": {
+    "@types/chai": "^4.3.4",
+    "@types/cheerio": "^0.22.31",
+    "@types/stream-json": "^1.7.3",
+    "@types/user-agents": "^1.0.2",
+    "axios": "^1.4.0",
+    "chai": "^4.3.7",
+    "chai-http": "^4.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.0.3"
+  },
+  "dependencies": {
+    "@types/pg": "^8.6.5",
+    "pg": "^8.8.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "random-useragent": "^0.5.0",
+    "stream-json": "^1.8.0",
+    "typescript": "*",
+    "user-agents": "^1.0.1431"
+  }
+}
