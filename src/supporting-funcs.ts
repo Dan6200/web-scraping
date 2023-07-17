@@ -22,7 +22,8 @@ export async function getData(page: Page, category: string) {
 
   {
     const error = (await errHandler(async () => {
-      await page.waitForSelector("#productTitle", { timeout: 10_000 });
+      delay(10_000);
+      await page.waitForSelector("img.a-dynamic-image", { timeout: 10_000 });
       title = await page.$eval("#productTitle", (el: any) =>
         el.textContent!.trim()
       );
@@ -32,7 +33,7 @@ export async function getData(page: Page, category: string) {
 
   {
     const error = (await errHandler(async () => {
-      const image = await page.$eval("#landingImage", (el) =>
+      const image = await page.$eval("div.imgTagWrapper > img", (el) =>
         el.getAttribute("src")!.trim()
       );
       imageData = removeResizing(image as string)!;
@@ -72,9 +73,12 @@ async function clickImage(page: Page, product_num: number, url: string) {
     // Action:
     // Clicks the product image and navigates to the product page
     async () => {
+      // debugger;
       await page.waitForSelector("a.a-link-normal.s-no-outline");
       const endIdx = await page.evaluate((idx: number) => {
-        const elements = document.querySelectorAll("a.a-link-normal.s-no-outline");
+        const elements = document.querySelectorAll(
+          "a.a-link-normal.s-no-outline"
+        );
         if (elements[idx]) {
           const element = elements[idx];
           const event = new MouseEvent("click", {
@@ -94,7 +98,6 @@ async function clickImage(page: Page, product_num: number, url: string) {
     async () => {
       await delay(5_000);
       await page.goto(url!, { timeout: 100_000 });
-      await page.waitForSelector("img-s-image");
     }
   );
 }
@@ -147,7 +150,28 @@ export async function* visitSubLinks(
         await delay(4000);
 
         // click on the product image and navigate to the product page
+        // If product is the last product on the page, return true
         const result = await clickImage(page, product_idx, url!);
+        // set the endOfPage variable if it is last on page
+        endOfPage = result[0];
+
+        // If product is the last product on the page, go to the next page
+        if (endOfPage === true) {
+          // Go to next page
+          await page.$eval("a.s-pagination-button", (el) => el.click());
+          // wait
+          await delay(5_000);
+          // Update url
+          url = page.url();
+          // Update page count
+          page_idx++;
+          // Reset product count
+          product_idx = 0;
+          // click on product
+          const err = await clickImage(page, product_idx, url!)[1];
+          // reassign endOfPage variable, if it is last on the new page
+          if (err) console.error(err);
+        }
 
         // Wait for high-res images to load
         await delay(5_000);
@@ -170,13 +194,6 @@ export async function* visitSubLinks(
 
       // Go back to the products page
       await page.goto(url!, { timeout: 100_000 });
-
-      // If product is the last product on the page, go to the next page
-      if (endOfPage === true) {
-        await page.$eval("a.s-pagination-button", (el) => el.click());
-        url = page.url();
-        page_idx++;
-      }
       product_idx++;
     }
   }

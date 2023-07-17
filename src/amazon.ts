@@ -20,8 +20,8 @@ export async function scrape() {
 
   try {
     browser = await puppeteer.default.launch({
-      headless: "new",
-      // headless: false,
+      // headless: "new",
+      headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
