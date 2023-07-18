@@ -5,26 +5,16 @@ import pkg from "stream-json/streamers/StreamArray.js";
 const { streamArray } = pkg;
 import db from "../db/pg/index.js";
 import fs from "node:fs";
-import { removeResizing } from "../src/supporting-funcs.js";
 import { assert } from "chai";
 import { errHandler } from "../src/supporting-funcs.js";
 import CC from "currency-converter-lt";
 
 async function populateDB() {
+  debugger;
   const jsonStream = fs
-    .createReadStream("server/src/data-bckup1.json")
+    .createReadStream("data-backup.json")
     .pipe(parser())
     .pipe(streamArray());
-
-  try {
-    await db.query({
-      text: `DELETE FROM user_accounts where 
-	email=$1`,
-      values: ["populatingdb@gmail.com"],
-    });
-  } catch (e) {
-    throw new Error(e.message);
-  }
 
   let userId: number;
   try {
@@ -41,7 +31,7 @@ async function populateDB() {
         values: [
           "Test",
           "Vendor",
-          "populatingdb@gmail.com",
+          "populatingdb-1@gmail.com",
           "password",
           "1990-01-01",
           "Nigeria",
@@ -49,6 +39,7 @@ async function populateDB() {
       })
     ).rows[0].user_id;
   } catch (e) {
+    console.log(e);
     throw new Error(e.message);
   }
 
@@ -61,6 +52,7 @@ async function populateDB() {
       })
     ).rows[0].vendor_id;
   } catch (e) {
+    console.log(e);
     throw new Error(e.message);
   }
 
@@ -73,28 +65,33 @@ async function populateDB() {
       })
     ).rows[0].store_id;
   } catch (e) {
+    console.log(e);
     throw new Error(e.message);
   }
-  let title: string, description: string, price: number, image: string;
+  let title: string = "",
+    category: string = "",
+    description: string[],
+    price: number = 0,
+    imageData: { img: string; original: string | null } | undefined;
 
   for await ({
-    value: { title, description, price, image },
+    value: { title, category, description, price, imageData },
   } of jsonStream) {
     let productId: number = 0;
     try {
-      if (title && description) {
-        const upper = 10_000;
-        const lower = 500_000;
-        let priceVal = Number(price ?? Math.random() * (upper - lower) + lower);
-        priceVal = priceVal;
-        priceVal *= 750; // Converts USD to Naira
+      if (title && price && imageData) {
+        // Covert USD to NGN with CC
+        // const currencyConv = new CC({ from: "USD", to: "NGN" });
+        // const priceVal = await currencyConv.convert(price);
+        const priceVal = price * 750;
         assert(!isNaN(priceVal));
         productId = (
           await db.query({
-            text: `INSERT INTO products (store_id, title, vendor_id, description, net_price, list_price, quantity_available) values ($1, $2, $3, $4, $5, $6, $7) RETURNING product_id`,
+            text: `INSERT INTO products (store_id, title, category, vendor_id, description, net_price, list_price, quantity_available) values ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING product_id`,
             values: [
               storeId,
               title,
+              category,
               vendorId,
               JSON.stringify(description),
               priceVal,
@@ -105,18 +102,19 @@ async function populateDB() {
         ).rows[0].product_id;
       }
     } catch (e) {
-      throw new Error(e.message);
+      console.log(e);
+      throw new Error(e);
     }
 
     try {
-      if (productId && image) {
-        const { img: imgUrl, original } = removeResizing(image);
+      if (productId > 0 && imageData) {
+        const { img: imgUrl, original } = imageData;
         const basename = imgUrl.slice(imgUrl.lastIndexOf("/"));
         const filename =
           basename.slice(1, basename.indexOf(".")) + Math.random() * 1e7;
         await db.query({
-          text: `INSERT INTO product_media (product_id, filename, filepath, original) values ($1, $2, $3, $4)`,
-          values: [productId, filename, imgUrl, original],
+          text: `INSERT INTO product_media (product_id, filename, filepath) values ($1, $2, $3)`,
+          values: [productId, filename, imgUrl],
         });
         await db.query({
           text: `INSERT INTO product_display_image values ($1)`,
@@ -124,6 +122,7 @@ async function populateDB() {
         });
       }
     } catch (e) {
+      console.log(e);
       throw new Error(e.message);
     }
   }

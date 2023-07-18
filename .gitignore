@@ -1,5 +1,6 @@
 *~
 data.json
+sql-data*
 .env
 *.sw*
 *node_modules

@@ -69,7 +69,6 @@ export async function getData(page: Page, category: string) {
 /** Clicks the product image and navigates to the product page */
 /** Returns true if is the last product on the page */
 async function clickImage(page: Page, product_num: number, url: string) {
-  const STOP = 50;
   return retryHandler(
     // Action:
     // Clicks the product image and navigates to the product page
@@ -92,7 +91,7 @@ async function clickImage(page: Page, product_num: number, url: string) {
         return elements.length;
       }, product_num);
       // If product is the last product on the page, return true
-      return product_num >= endIdx! || product_num >= STOP;
+      return product_num >= endIdx!;
     },
     // Intermediary action before retrying:
     // Goes back to the previous page then tries again
@@ -110,6 +109,8 @@ export async function* visitSubLinks(
   subLinks: string[]
 ) {
   let category: string | undefined;
+  const START = 0,
+    STOP = 10;
 
   while (subLinks.length > 0) {
     // Navigate to the next URL in the subLink array
@@ -136,9 +137,10 @@ export async function* visitSubLinks(
 
     // Keep track of product index
     let product_idx = 0;
-    // Keep track of page index
-    let page_idx = 0;
-    while (true) {
+
+    // Manually paginate through the pages
+    let page_idx = START;
+    while (page_idx < STOP) {
       let endOfPage: boolean | undefined;
       try {
         // print page number
@@ -230,11 +232,18 @@ export async function getSubLinks(page: Page, baseUrl: string) {
   // Wait for the links to the product categories to load
   await page.waitForSelector('a[href*="s?bbn"]', { timeout: 100_000 });
 
+  // wait for all links to load
+  await delay(50_000);
+
   // extract the links from each product category
   return await page.$$eval(
     'a[href*="s?bbn"]',
-    (links: Array<HTMLAnchorElement>) =>
-      links.map((link) => link.getAttribute("href"))
+    (links: Array<HTMLAnchorElement>) => {
+      // Manual pagination
+      const START = 0;
+      const STOP = 10;
+      return links.map((link) => link.getAttribute("href"))?.slice(START, STOP); // paginate the links manually
+    }
   );
 }
 

@@ -40,7 +40,7 @@ export async function scrape() {
     delay(5000);
 
     // prints the number of sublinks
-    console.log(subLinks.length);
+    console.log("Number of Links: ", subLinks.length);
 
     // Create a filestream to write data to a file
     fileStream = fs.createWriteStream("data.json");
