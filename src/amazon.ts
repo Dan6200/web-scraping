@@ -1,7 +1,11 @@
 //cspell:disable
 import puppeteer from "puppeteer-extra";
 import stealth from "puppeteer-extra-plugin-stealth";
-import { getSubLinks } from "./supporting-funcs.js";
+import {
+  END_SUB_CATEGORY,
+  getSubLinks,
+  START_SUB_CATEGORY,
+} from "./supporting-funcs.js";
 import fs from "node:fs";
 import { delay, visitSubLinks } from "./supporting-funcs.js";
 import chai from "chai";
@@ -34,7 +38,10 @@ export async function scrape() {
     const page = await browser.newPage();
 
     // Get sublink from hamburger menu
-    const subLinks = await getSubLinks(page, baseUrl);
+    const linksRes = await getSubLinks(page, baseUrl);
+
+    // Manually paginate the links
+    const subLinks = linksRes.slice(START_SUB_CATEGORY, END_SUB_CATEGORY);
 
     // wait
     delay(5000);

@@ -4,6 +4,12 @@ import chai from "chai";
 
 chai.should();
 
+/** Pagination */
+export const START_SUB_CATEGORY = 0,
+  END_SUB_CATEGORY = 10;
+export const START_PAGE = 0,
+  END_PAGE = 10;
+
 export async function delay(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
@@ -109,8 +115,6 @@ export async function* visitSubLinks(
   subLinks: string[]
 ) {
   let category: string | undefined;
-  const START = 0,
-    STOP = 10;
 
   while (subLinks.length > 0) {
     // Navigate to the next URL in the subLink array
@@ -139,8 +143,8 @@ export async function* visitSubLinks(
     let product_idx = 0;
 
     // Manually paginate through the pages
-    let page_idx = START;
-    while (page_idx < STOP) {
+    let page_idx = START_PAGE;
+    while (page_idx < END_PAGE) {
       let endOfPage: boolean | undefined;
       try {
         // print page number
@@ -239,10 +243,7 @@ export async function getSubLinks(page: Page, baseUrl: string) {
   return await page.$$eval(
     'a[href*="s?bbn"]',
     (links: Array<HTMLAnchorElement>) => {
-      // Manual pagination
-      const START = 0;
-      const STOP = 10;
-      return links.map((link) => link.getAttribute("href"))?.slice(START, STOP); // paginate the links manually
+      return links.map((link) => link.getAttribute("href"));
     }
   );
 }
