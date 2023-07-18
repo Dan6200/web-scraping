@@ -69,6 +69,7 @@ export async function getData(page: Page, category: string) {
 /** Clicks the product image and navigates to the product page */
 /** Returns true if is the last product on the page */
 async function clickImage(page: Page, product_num: number, url: string) {
+  const STOP = 50;
   return retryHandler(
     // Action:
     // Clicks the product image and navigates to the product page
@@ -91,7 +92,7 @@ async function clickImage(page: Page, product_num: number, url: string) {
         return elements.length;
       }, product_num);
       // If product is the last product on the page, return true
-      if (product_num >= endIdx!) return true;
+      return product_num >= endIdx! || product_num >= STOP;
     },
     // Intermediary action before retrying:
     // Goes back to the previous page then tries again
@@ -108,13 +109,11 @@ export async function* visitSubLinks(
   baseUrl: string,
   subLinks: string[]
 ) {
-  let count = 0;
   let category: string | undefined;
 
   while (subLinks.length > 0) {
     // Navigate to the next URL in the subLink array
     let url = baseUrl.slice(0, baseUrl.indexOf("/s")) + subLinks.shift();
-    console.log("page: ", count++);
     await page.goto(url!, { timeout: 100_000 });
 
     // wait 1 second before clicking on the product image
@@ -133,6 +132,7 @@ export async function* visitSubLinks(
       }))![1];
       if (error) console.error(error);
     }
+    console.log("category: ", category);
 
     // Keep track of product index
     let product_idx = 0;
@@ -168,8 +168,12 @@ export async function* visitSubLinks(
           // Reset product count
           product_idx = 0;
           // click on product
-          const err = await clickImage(page, product_idx, url!)[1];
+          const res = await clickImage(page, product_idx, url!);
           // reassign endOfPage variable, if it is last on the new page
+          endOfPage = res[0];
+          // if endOfPage is still true, then break out of the loop
+          if (endOfPage === true) break;
+          const err = res[1];
           if (err) console.error(err);
         }
 
