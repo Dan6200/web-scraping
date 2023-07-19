@@ -12,7 +12,7 @@ import CC from "currency-converter-lt";
 async function populateDB() {
   debugger;
   const jsonStream = fs
-    .createReadStream("data-backup.json")
+    .createReadStream("data.json")
     .pipe(parser())
     .pipe(streamArray());
 
@@ -31,7 +31,7 @@ async function populateDB() {
         values: [
           "Test",
           "Vendor",
-          "populatingdb-1@gmail.com",
+          "populatingdb-2@gmail.com",
           "password",
           "1990-01-01",
           "Nigeria",
