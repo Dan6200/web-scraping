@@ -1,13 +1,8 @@
 //cspell:disable
 import puppeteer from "puppeteer-extra";
 import stealth from "puppeteer-extra-plugin-stealth";
-import {
-  END_SUB_CATEGORY,
-  getSubLinks,
-  START_SUB_CATEGORY,
-} from "./supporting-funcs.js";
-import fs from "node:fs";
-import { delay, visitSubLinks } from "./supporting-funcs.js";
+import { END_SUB_CATEGORY, getSubLinks, START_SUB_CATEGORY } from "./utils.js";
+import { delay, visitSubLinks } from "./utils.js";
 import chai from "chai";
 
 chai.should();
@@ -15,9 +10,8 @@ chai.should();
 // Use Stealth plugin to avoid Captcha
 puppeteer.default.use(stealth());
 
-export async function scrape() {
+export default async function* () {
   let browser: any;
-  let fileStream: fs.WriteStream | undefined;
 
   // Adding 's' to the end of the url somehow avoids Captcha
   const baseUrl = "https://www.amazon.com/s";
@@ -49,14 +43,7 @@ export async function scrape() {
     // prints the number of sublinks
     console.log("Number of Links: ", subLinks.length);
 
-    // Create a filestream to write data to a file
-    fileStream = fs.createWriteStream("data.json");
-
-    // Store data in an array
-    fileStream.write("[\n");
-
     // Visits each sublink and scrapes data
-    // TODO: step-debug to understand the control flow
     for await (const data of visitSubLinks(
       page,
       baseUrl,
@@ -64,27 +51,13 @@ export async function scrape() {
     )) {
       // print data to console
       console.log(data);
-      // write data to file
-      fileStream.write(JSON.stringify(data) + ",\n");
+      // yield data
+      yield data;
     }
   } catch (err) {
     console.log("Operation failed", err);
   } finally {
     // Clean up
-    fileStream?.write("]\n");
-    fileStream?.end();
     await browser?.close();
   }
 }
-
-async function callScrape() {
-  try {
-    await scrape();
-  } catch (error) {
-    console.log(error);
-    delay(10_000);
-    await scrape();
-  }
-}
-
-callScrape();
