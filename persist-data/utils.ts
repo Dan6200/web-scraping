@@ -9,10 +9,9 @@ export const deleteUser = async () =>
     values: [email],
   });
 
-export const createUser = async () =>
-  (
-    await db.query({
-      text: `INSERT INTO user_accounts (
+export const createUser = async (): Promise<number> => {
+  const res = await db.query({
+    text: `INSERT INTO user_accounts (
 						first_name,
 						last_name,
 						email,
@@ -20,16 +19,23 @@ export const createUser = async () =>
 						dob,
 						country
 						) values ($1, $2, $3, $4, $5, $6) RETURNING user_id`,
-      values: [
-        "Test",
-        "Vendor",
-        "populatingdb-1@gmail.com",
-        "password",
-        "1990-01-01",
-        "Nigeria",
-      ],
-    })
-  ).rows[0].user_id;
+    values: [
+      "Test",
+      "Vendor",
+      "populatingdb-1@gmail.com",
+      "password",
+      "1990-01-01",
+      "Nigeria",
+    ],
+  });
+  if (
+    res == undefined ||
+    (res.rows[0] == undefined && "user_id" in res.rows[0] === false) ||
+    typeof res.rows[0].user_id !== "number"
+  )
+    throw new Error("Error creating user");
+  return res.rows[0].user_id;
+};
 
 export const createVendor = async (userId: number) =>
   (

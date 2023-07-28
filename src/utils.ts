@@ -49,37 +49,12 @@ export async function getData(page: Page, category: string) {
 /** Clicks the product image and navigates to the product page */
 /** Returns true if is the last product on the page */
 async function clickImage(page: Page, product_num: number, url: string) {
-  return retryHandler(
-    // Action:
-    // Clicks the product image and navigates to the product page
-    async () => {
-      // debugger;
-      await page.waitForSelector("a.a-link-normal.s-no-outline");
-      const endIdx = await page.evaluate((idx: number) => {
-        const elements = document.querySelectorAll(
-          "a.a-link-normal.s-no-outline"
-        );
-        if (elements[idx]) {
-          const element = elements[idx];
-          const event = new MouseEvent("click", {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-          });
-          element.dispatchEvent(event);
-        }
-        return elements.length;
-      }, product_num);
-      // If product is the last product on the page, return true
-      return product_num >= endIdx!;
-    },
-    // Intermediary action before retrying:
-    // Goes back to the previous page then tries again
-    async () => {
-      await delay(5_000);
-      await page.goto(url!, { timeout: 100_000 });
-    }
-  );
+  const goBack = async () => {
+    await delay(5_000);
+    await page.goto(url!, { timeout: 100_000 });
+  };
+  // Clicks the product image and navigates to the product page, if failed, retry
+  return retry(clickImageHelp, goBack, page, product_num);
 }
 
 /** Visit each sublink from the menu and scrape the data */
@@ -245,18 +220,18 @@ export async function to<T, U>(
 }
 
 /** Wraps an async function in a try catch block and retries once on error */
-export async function retryHandler<T, U>(
-  action: (args: T[]) => Promise<U>,
-  intermediateAction?: (args: T[]) => Promise<U>,
+export async function retry<T, U>(
+  action: (...args: T[]) => Promise<U>,
+  intermediateAction?: () => Promise<void>,
   ...args: T[]
 ) {
   try {
-    const data = await action(args);
+    const data = await action(...args);
     return [data, null];
   } catch (e) {
-    if (intermediateAction) await intermediateAction(args);
+    if (intermediateAction) await intermediateAction();
     try {
-      const data = await action(args);
+      const data = await action(...args);
       return [data, null];
     } catch (e) {
       return [null, e];
@@ -309,4 +284,24 @@ const getDescriptions = async (page: Page) => {
   return page.$$eval("#feature-bullets li span", (el) =>
     el.map((e) => e.textContent!.trim())
   );
+};
+
+const clickImageHelp = async (page: Page, product_num: number) => {
+  // debugger;
+  await page.waitForSelector("a.a-link-normal.s-no-outline");
+  const endIdx = await page.evaluate((idx: number) => {
+    const elements = document.querySelectorAll("a.a-link-normal.s-no-outline");
+    if (elements[idx]) {
+      const element = elements[idx];
+      const event = new MouseEvent("click", {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+    }
+    return elements.length;
+  }, product_num);
+  // If product is the last product on the page, return true
+  return product_num >= endIdx!;
 };

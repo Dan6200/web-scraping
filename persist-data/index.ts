@@ -13,13 +13,13 @@ import {
 async function populateDB() {
   try {
     const [, err] = await to(deleteUser);
-    if (err) throw new Error(err);
+    if (err) throw new Error(err.message);
 
     let userId: number;
     {
       const [id, err] = await to(createUser);
       if (err) throw new Error(err.message);
-      userId = id;
+      if (id) userId = id;
     }
 
     let vendorId: number;
