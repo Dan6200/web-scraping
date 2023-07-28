@@ -1,3 +1,4 @@
+// cspell:ignore sublink sublinks
 import { Page } from "puppeteer-core";
 import UA from "user-agents";
 import chai from "chai";
@@ -10,14 +11,6 @@ export const START_SUB_CATEGORY = 85,
 export const START_PAGE = 0,
   END_PAGE = 10 + START_PAGE;
 
-export async function delay(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time));
-}
-
-export function removeResizing(str: string | null) {
-  return { img: str!.slice(0, str!.indexOf("._")) + ".jpg", original: str };
-}
-
 /** Gets data from each Product page **/
 export async function getData(page: Page, category: string) {
   // Definitions
@@ -27,46 +20,27 @@ export async function getData(page: Page, category: string) {
     description: string[] | undefined;
 
   {
-    const error = (await errHandler(async () => {
-      delay(10_000);
-      await page.waitForSelector("img.a-dynamic-image", { timeout: 10_000 });
-      title = await page.$eval("#productTitle", (el: any) =>
-        el.textContent!.trim()
-      );
-    }))![1];
+    const [data, error] = await to(getTitle, page);
     if (error) console.error(error);
+    title = data;
   }
 
   {
-    const error = (await errHandler(async () => {
-      const image = await page.$eval("div.imgTagWrapper > img", (el) =>
-        el.getAttribute("src")!.trim()
-      );
-      imageData = removeResizing(image as string)!;
-    }))![1];
+    const [data, error] = await to(getImages, page);
     if (error) console.error(error);
+    if (data) imageData = data;
   }
 
   {
-    const error = (await errHandler(async () => {
-      price = parseFloat(
-        await page.$eval(".a-price .a-offscreen", (el) =>
-          el.textContent!.trim().slice(1)
-        )
-      );
-      price.should.be.a("number");
-      price.should.not.be.NaN;
-    }))![1];
+    const [data, error] = await to(getPrice, page);
     if (error) console.error(error);
+    if (data) price = data;
   }
 
   {
-    const error = (await errHandler(async () => {
-      description = await page.$$eval("#feature-bullets li span", (el) =>
-        el.map((e) => e.textContent!.trim())
-      );
-    }))![1];
+    const [data, error] = await to(getDescriptions, page);
     if (error) console.error(error);
+    if (data) description = data;
   }
 
   return { title, category, imageData, price, description };
@@ -126,18 +100,10 @@ export async function* visitSubLinks(
 
     // Get the category from the page
     if (category === undefined) {
-      const error: Error = (await errHandler(async () => {
-        await page.waitForSelector("#searchDropdownBox > option[selected]", {
-          timeout: 10_000,
-        });
-        category = await page.$eval(
-          "#searchDropdownBox > option[selected]",
-          (el: any) => el.textContent!.trim()
-        );
-      }))![1];
+      const [text, error] = await to(selectCategory, page);
       if (error) console.error(error);
+      if (text) category = text;
     }
-    console.log("category: ", category);
 
     // Keep track of product index
     let product_idx = 0;
@@ -249,12 +215,29 @@ export async function getSubLinks(page: Page, baseUrl: string) {
 }
 
 /** Wraps an async function in a try catch block */
-export async function errHandler(
-  promiseFunction: (args: any[]) => Promise<any>,
-  ...args: any[]
-) {
+export async function to<T, U>(
+  promiseFunction: () => Promise<U>
+): Promise<Awaited<[U | null, Error | null]>>;
+export async function to<T, U>(
+  promiseFunction: (arg: T) => Promise<U>,
+  arg: T
+): Promise<Awaited<[U | null, Error | null]>>;
+export async function to<T, U>(
+  promiseFunction: (arg: T[]) => Promise<U>,
+  args: T[]
+): Promise<Awaited<[U | null, Error | null]>>;
+export async function to<T, U>(
+  promiseFunction: (args: T | T[]) => Promise<U>,
+  arg?: T,
+  args?: T[]
+): Promise<Awaited<[U | null, Error | null]>> {
   try {
-    const data = await promiseFunction(args);
+    // Option to pass in one argument or a list of arguments
+    const data = arg
+      ? await promiseFunction(arg)
+      : args && args.length
+      ? await promiseFunction(args)
+      : null;
     return [data, null];
   } catch (e) {
     return [null, e];
@@ -262,10 +245,10 @@ export async function errHandler(
 }
 
 /** Wraps an async function in a try catch block and retries once on error */
-export async function retryHandler(
-  action: (args: any[]) => Promise<any>,
-  intermediateAction?: (args: any[]) => Promise<any>,
-  ...args: any[]
+export async function retryHandler<T, U>(
+  action: (args: T[]) => Promise<U>,
+  intermediateAction?: (args: T[]) => Promise<U>,
+  ...args: T[]
 ) {
   try {
     const data = await action(args);
@@ -280,3 +263,50 @@ export async function retryHandler(
     }
   }
 }
+
+const getTitle = async (page: Page) => {
+  delay(10_000);
+  await page.waitForSelector("img.a-dynamic-image", { timeout: 10_000 });
+  return page.$eval("#productTitle", (el: any) => el.textContent!.trim());
+};
+
+export async function delay(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time));
+}
+
+export function removeResizing(str: string | null) {
+  return { img: str!.slice(0, str!.indexOf("._")) + ".jpg", original: str };
+}
+
+const getImages = async (page: Page) => {
+  const image = await page.$eval("div.imgTagWrapper > img", (el) =>
+    el.getAttribute("src")!.trim()
+  );
+  return removeResizing(image as string)!;
+};
+
+const selectCategory = async (page: Page): Promise<string> => {
+  await page.waitForSelector("#searchDropdownBox > option[selected]", {
+    timeout: 10_000,
+  });
+  return page.$eval("#searchDropdownBox > option[selected]", (el: any) =>
+    el.textContent!.trim()
+  );
+};
+
+const getPrice = async (page: Page) => {
+  const price = parseFloat(
+    await page.$eval(".a-price .a-offscreen", (el) =>
+      el.textContent!.trim().slice(1)
+    )
+  );
+  price.should.be.a("number");
+  price.should.not.be.NaN;
+  return price;
+};
+
+const getDescriptions = async (page: Page) => {
+  return page.$$eval("#feature-bullets li span", (el) =>
+    el.map((e) => e.textContent!.trim())
+  );
+};
