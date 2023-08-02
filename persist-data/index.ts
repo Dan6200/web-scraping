@@ -12,25 +12,26 @@ import {
 
 async function populateDB() {
   try {
-    const [, err] = await to(deleteUser);
+    const [_, err] = await to(deleteUser);
     if (err) throw new Error(err.message);
 
-    let userId: number;
+    let userId: number | null = null;
     {
       const [id, err] = await to(createUser);
       if (err) throw new Error(err.message);
       if (id) userId = id;
     }
 
-    let vendorId: number;
-    {
+    let vendorId: number | null = null;
+
+    if (userId !== null) {
       const [id, err] = await to(createVendor, userId);
       if (err) throw new Error(err.message);
-      vendorId = id;
+      if (id) vendorId = id;
     }
 
-    let storeId: number;
-    {
+    let storeId: number | null = null;
+    if (vendorId === null) {
       const [id, e] = await to(addStore, vendorId);
       if (e) throw new Error(e.message);
       storeId = id;
@@ -48,9 +49,9 @@ async function populateDB() {
       price,
       imageData,
     } of scrapeAmazon()) {
-      let productId: number = 0;
-      {
-        const [, e] = await to(addProducts, [
+      let productId: number | null = null;
+      if (storeId !== null) {
+        const [id, e] = await to(addProducts, [
           title,
           category,
           description,
@@ -60,9 +61,11 @@ async function populateDB() {
           vendorId,
         ]);
         if (e) throw new Error(e.message);
+        if (id) productId = id;
       }
 
-      {
+      /** TODO: upload media image data instead of saving link **/
+      if (productId !== null) {
         const [, e] = await to(addProductMedia, [productId, imageData]);
         if (e) throw new Error(e.message);
       }
@@ -74,4 +77,8 @@ async function populateDB() {
   }
 }
 
-populateDB();
+async function main() {
+  await populateDB();
+}
+
+main();

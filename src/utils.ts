@@ -58,6 +58,7 @@ async function clickImage(page: Page, product_num: number, url: string) {
 }
 
 /** Visit each sublink from the menu and scrape the data */
+/****** Manually provide links to sub category to save resources ****/
 export async function* visitSubLinks(
   page: Page,
   baseUrl: string,
@@ -67,7 +68,7 @@ export async function* visitSubLinks(
 
   while (subLinks.length > 0) {
     // Navigate to the next URL in the subLink array
-    let url = baseUrl.slice(0, baseUrl.indexOf("/s")) + subLinks.shift();
+    let url = baseUrl.slice(0, baseUrl.lastIndexOf("/")) + subLinks.shift();
     await page.goto(url!, { timeout: 100_000 });
 
     // wait 1 second before clicking on the product image
@@ -83,7 +84,7 @@ export async function* visitSubLinks(
     // Keep track of product index
     let product_idx = 0;
 
-    // Manually paginate through the pages
+    // paginate through the pages
     let page_idx = START_PAGE;
     while (page_idx < END_PAGE) {
       let endOfPage: boolean | undefined;
@@ -137,8 +138,9 @@ export async function* visitSubLinks(
       } finally {
         // Retrieve data from page
         const data = await getData(page, category!);
-        // return data
+        // yield data
         yield data;
+        break;
         // wait 5 seconds before going to the next item
         await delay(5_000);
       }
@@ -202,17 +204,12 @@ export async function to<T, U>(
   args: T[]
 ): Promise<Awaited<[U | null, Error | null]>>;
 export async function to<T, U>(
-  promiseFunction: (args: T | T[]) => Promise<U>,
-  arg?: T,
+  promiseFunction: (args?: T | T[]) => Promise<U>,
   args?: T[]
 ): Promise<Awaited<[U | null, Error | null]>> {
   try {
     // Option to pass in one argument or a list of arguments
-    const data = arg
-      ? await promiseFunction(arg)
-      : args && args.length
-      ? await promiseFunction(args)
-      : null;
+    const data = args ? await promiseFunction(args) : await promiseFunction();
     return [data, null];
   } catch (e) {
     return [null, e];
@@ -287,7 +284,6 @@ const getDescriptions = async (page: Page) => {
 };
 
 const clickImageHelp = async (page: Page, product_num: number) => {
-  // debugger;
   await page.waitForSelector("a.a-link-normal.s-no-outline");
   const endIdx = await page.evaluate((idx: number) => {
     const elements = document.querySelectorAll("a.a-link-normal.s-no-outline");

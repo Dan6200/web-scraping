@@ -1,13 +1,15 @@
 import { assert } from "chai";
 import db from "../db/pg/index.js";
+import CC from "currency-converter-lt";
 
-const email = "testing-populate-db-1803";
+const email = "testing-populate-db-1803@mail.com";
 // Reset Test
-export const deleteUser = async () =>
+export const deleteUser = async () => {
   await db.query({
     text: `DELETE FROM user_accounts WHERE email = $1`,
     values: [email],
   });
+};
 
 export const createUser = async (): Promise<number> => {
   const res = await db.query({
@@ -19,14 +21,7 @@ export const createUser = async (): Promise<number> => {
 						dob,
 						country
 						) values ($1, $2, $3, $4, $5, $6) RETURNING user_id`,
-    values: [
-      "Test",
-      "Vendor",
-      "populatingdb-1@gmail.com",
-      "password",
-      "1990-01-01",
-      "Nigeria",
-    ],
+    values: ["Test", "Vendor", email, "password", "1990-01-01", "Nigeria"],
   });
   if (
     res == undefined ||
@@ -72,25 +67,31 @@ export const addProducts = async ([
 ]) => {
   if (title && price != undefined && imageData) {
     // Covert USD to NGN with CC
-    // const currencyConverter = new CC({ from: "USD", to: "NGN" });
-    // const priceVal = await currencyConverter.convert(price);
-    const priceVal = price * 750;
+    const currencyConverter = new CC({ from: "USD", to: "NGN" });
+    const priceVal = await currencyConverter.convert(price);
+    // const priceVal = price * 750;
     assert(!isNaN(priceVal));
-    (
-      await db.query({
-        text: `INSERT INTO products (store_id, title, category, vendor_id, description, net_price, list_price, quantity_available) values ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING product_id`,
-        values: [
-          storeId,
-          title,
-          category,
-          vendorId,
-          JSON.stringify(description),
-          priceVal,
-          priceVal + Math.random() * 1001,
-          Math.floor(Math.random() * 51),
-        ],
-      })
-    ).rows[0].product_id;
+    const res = await db.query({
+      text: `INSERT INTO products (store_id, title, category, vendor_id, description, net_price, list_price, quantity_available) values ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING product_id`,
+      values: [
+        storeId,
+        title,
+        category,
+        vendorId,
+        JSON.stringify(description),
+        priceVal,
+        priceVal + Math.random() * 1001,
+        Math.floor(Math.random() * 51),
+      ],
+    });
+    if (
+      res == undefined ||
+      res.rows[0] == undefined ||
+      res.rows[0].product_id == undefined ||
+      typeof res.rows[0].product_id !== "number"
+    )
+      throw new Error("Error creating product");
+    return res.rows[0].product_id as number;
   }
 };
 
@@ -102,7 +103,7 @@ export const addProductMedia = async ([productId, imageData]: [
     const { img: imgUrl } = imageData!;
     const basename = imgUrl.slice(imgUrl.lastIndexOf("/"));
     const filename =
-      basename.slice(1, basename.indexOf(".")) + Math.random() * 1e7;
+      basename.slice(1, basename.indexOf(".") - 1) + Math.random() * 1e7;
     await db.query({
       text: `INSERT INTO product_media (product_id, filename, filepath) values ($1, $2, $3)`,
       values: [productId, filename, imgUrl],

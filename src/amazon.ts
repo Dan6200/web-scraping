@@ -18,8 +18,8 @@ export default async function* () {
 
   try {
     browser = await puppeteer.default.launch({
-      headless: "new",
-      // headless: false,
+      // headless: "new",
+      headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -35,7 +35,7 @@ export default async function* () {
     const linksRes = await getSubLinks(page, baseUrl);
 
     // Manually paginate the links
-    const subLinks = linksRes.slice(START_SUB_CATEGORY, END_SUB_CATEGORY);
+    const subLinks = linksRes.slice(1, 2);
 
     // wait
     delay(5000);
@@ -53,6 +53,8 @@ export default async function* () {
       console.log(data);
       // yield data
       yield data;
+      debugger;
+      break;
     }
   } catch (err) {
     console.log("Operation failed", err);

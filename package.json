@@ -6,8 +6,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node built/src/amazon.js",
-    "debug": "node --inspect-brk built/src/amazon.js",
+    "start": "node built/persist-data/index.js",
+    "debug": "node --inspect-brk built/persist-data/index.js",
     "dev": "",
     "build": "tsc -p tsconfig.json"
   },
